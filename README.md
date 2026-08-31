@@ -1,58 +1,114 @@
 # Diamond Lightning Node
 
-`dln-node`, Diamond Lightning Node is designed to be a hyper secure Lightning node, and like a diamond it aims to be transparent and hard, and created to perfection using a controlled process. Design goals.
+`dln-node` -- the Diamond Lightning Node -- is a security-focused Lightning
+node. Like a diamond, it is designed to be transparent and hard, and to be
+produced through a controlled development process.
 
-* Transparent, as in user auditable, under a GPL3 license.
-* Hard, as in low attack surface, minimalistic, defensive coding, and functional design.
-* Controlled, as in there is a process around how the software is created, checked in, reviewed, verified, delivered and deployed.
+Its design goals are:
 
-Currently it's built around [`ldk-node`], controlled entirely over
-Nostr and designed with the ability to run without holding its own keys, and instead having them in an external signer, that can
-run in a secure enclave.
+- **Transparent:** user-auditable and licensed under GPLv3.
+- **Hard:** a small attack surface, minimal components, defensive coding, and
+  functional design.
+- **Controlled:** a defined process for developing, reviewing, verifying,
+  releasing, and deploying the software.
+
+It is built around [`ldk-node`] and controlled entirely through Nostr. It can
+operate without holding its own keys by delegating signing to an external
+signer, which may run inside a secure enclave.
 
 It takes its chain data from a Bitcoin Core RPC endpoint, exposes no HTTP or
 gRPC surface, and delegates signing to an external signer that can live in
 another process — or, for tests, in-process or not at all.
 
-## Control plane
+## Protocol development
 
-Nostr is the node's only API. There is no CLI and no local socket. Two message
-channels carry different classes of operation:
+`dln-node` is both a Lightning node implementation and a proving ground for
+open Nostr protocols for operating secure Lightning infrastructure.
 
-| Channel | Kind | Covers |
-|---|---|---|
-| **NWC** (NIP-47 shaped) | standard NWC kinds | wallet operations — balance, invoices, payments, on-chain |
-| **NCC** | 23198 request / 23199 response, NIP-04 encrypted | node operations — channels, peers, fees, routing, network queries |
+The project develops and tests a three-part protocol suite:
 
-On NWC that means `get_info` and `get_balance`; `make_invoice`,
+| Protocol | Purpose | Status |
+| --- | --- | --- |
+| **NWC** | Wallet operations, including invoices, payments, offers, and on-chain operations | Extends NIP-47 with candidate methods and capabilities |
+| **NCC** | Lightning node control, including channels, peers, fees, routing, and network queries | Developing protocol proposal |
+| **NSC** | Communication with an external signer and enforcement of signing policy | Developing protocol proposal |
+
+The goal is to refine these protocols through working implementations,
+interoperability testing, and operational experience, then propose the
+resulting extensions for adoption as open standards.
+
+Until those proposals are accepted, functionality described as an extension
+or proposal is implementation-specific and should not be assumed to be part
+of an established NIP.
+
+## Nostr protocol suite
+
+Nostr is the node's only API. There is no CLI, HTTP or gRPC API, or local
+control socket. The protocol suite separates wallet operations, node control,
+and signing into distinct interfaces.
+
+This separation is deliberate: each protocol has a focused responsibility,
+can evolve independently, and can be implemented by other clients, nodes, and
+signers.
+
+| Protocol | Responsibility | Current implementation |
+| --- | --- | --- |
+| **NWC** | Wallet operations | NIP-47 plus candidate extensions |
+| **NCC** | Node control | Kinds 23198 and 23199, encrypted with NIP-04 |
+| **NSC** | External signing and policy enforcement | Nostr signer transport |
+
+### NWC and its extensions
+
+On NWC, that means `get_info` and `get_balance`; `make_invoice`,
 `lookup_invoice`, `list_invoices` and `pay_invoice`; the hold-invoice
 primitives `make_hold_invoice`, `settle_hold_invoice` and
 `cancel_hold_invoice`; keysend; BOLT12 offers; and the on-chain set
 (`pay_onchain`, `make_new_address`, `list_addresses`, `list_transactions`,
-fee estimation). On NCC: `open_channel`, `list_channels`, `close_channel`,
-`connect_peer`, `disconnect_peer`, `list_peers`, `get_channel_fees`,
-`set_channel_fees`, `get_forwarding_history`, `query_routes`, the network
-queries, and `subscribe_notifications`.
+and fee estimation).
 
-**Not all of the NWC surface is NIP-47.** Hold invoices in particular are not
-in the specification; the node depends on a fork of `nostr-sdk`/`nwc` that
-defines them. The dispatch in `src/lib.rs` is the authoritative list.
+The implemented NWC interface includes NIP-47 methods and candidate extensions
+being developed for standardisation. Hold invoices are one such extension:
+they are not currently part of NIP-47 and are provided through the project's
+fork of `nostr-sdk`/`nwc`.
 
-Both channels are gated by **grants**: kind-30078 events addressed with a `d`
-tag of `{service_pubkey}:{client_pubkey}`. A grant carries an optional
-client-wide `quota`, a **`methods`** map for NWC and a **`control`** map for
-NCC, each entry holding a per-method `access_rate`. Authorisation is per
-method *and* per client key, so different clients can hold different
-capabilities against the same node. A method absent from the grant is refused
-with `Restricted`.
+The dispatch in `src/lib.rs` is the authoritative list of methods implemented
+by this node. Implementation here does not imply that an extension has already
+been accepted into NIP-47.
 
-## Signing
+### NCC
 
-On the default paths the node never sees raw keys. LDK's `KeysInterface` is
-backed by a signing client, so every signing operation is a request the signer
-validates against policy before honouring — and can refuse.
+NCC is the proposed node-control protocol. It covers `open_channel`,
+`list_channels`, `close_channel`, `connect_peer`, `disconnect_peer`,
+`list_peers`, `get_channel_fees`, `set_channel_fees`,
+`get_forwarding_history`, `query_routes`, network queries, and
+`subscribe_notifications`.
 
-`signer.transport` selects how:
+`dln-node` currently uses kind 23198 for requests and kind 23199 for responses,
+with NIP-04 encryption. These assignments and message formats are under active
+development towards a standards proposal.
+
+NWC and NCC are gated by **grants**: kind-30078 events addressed with a `d` tag
+of `{service_pubkey}:{client_pubkey}`. A grant carries an optional client-wide
+`quota`, a **`methods`** map for NWC, and a **`control`** map for NCC. Each map
+entry defines a per-method `access_rate`. Authorisation is per method *and* per
+client key, so different clients can hold different capabilities on the same
+node. A method absent from the grant is refused with `Restricted`.
+
+## Signing and NSC
+
+NSC is the proposed interface between a node and an external signer. Its
+purpose is to keep raw keys outside the node and allow an independent signer
+to validate every signing request against policy.
+
+The `nostr` signer transport is the current implementation used to develop and
+test this protocol. The goal is an interoperable interface that can be
+implemented by independent nodes, signers, and secure-enclave deployments.
+
+On the default paths, the node never sees raw keys. LDK's `KeysInterface` is
+backed by a signing client. Every signing operation is sent to the signer,
+which validates it against policy and may refuse it.
+
+`signer.transport` selects the signing mode:
 
 | Mode | Where keys live | Policy validation | Use |
 |---|---|---|---|
@@ -71,7 +127,7 @@ signs.
 
 ## Configuration
 
-`config.toml`, read from the working directory:
+The node reads `config.toml` from its working directory:
 
 ```toml
 [node]
@@ -96,21 +152,21 @@ rpc_user = "rpcuser"
 rpc_password = "rpcpass"
 
 [signer]
-transport = "nostr"          # nostr | embedded | none
-relay = "ws://localhost:7777"   # nostr transport only
-nsec = "<node proxy nsec hex>"  # nostr transport only
-signer_pubkey = "<signer pubkey hex>"  # nostr transport only
+transport = "nostr"                     # nostr | embedded | none
+relay = "ws://localhost:7777"           # nostr transport only
+nsec = "<node proxy nsec hex>"          # nostr transport only
+signer_pubkey = "<signer pubkey hex>"   # nostr transport only
 ```
 
 `[bitcoind]` and `[signer]` are optional. Omitting `[bitcoind]` starts the NWC
 service without a Lightning node attached. **Omitting `[signer]` selects
 `embedded`** — an in-process signer with two routing-balance policies
-downgraded to warnings, which is a test configuration rather than a default
-worth inheriting by accident.
+downgraded to warnings. This mode is intended for testing and should not be
+selected implicitly in production.
 
 ## Building
 
-```
+```console
 cargo build --bin dln-node
 ```
 
@@ -119,9 +175,11 @@ cargo build --bin dln-node
 End-to-end scenarios live in [`dln-node-e2e`], which drives real nodes against
 a Bitcoin Core regtest container:
 
-- `two_dln_nodes` — two nodes, channel open, invoice, Lightning payment
-- `onchain_payment` — on-chain send, verified against bitcoind
-- `hold_invoice` — the settle and cancel paths of a held HTLC
+- `two_dln_nodes` — opens a channel, creates an invoice, and completes a
+  Lightning payment between two nodes
+- `onchain_payment` — sends an on-chain payment and verifies it through
+  Bitcoin Core
+- `hold_invoice` — tests both settlement and cancellation of a held HTLC
 
 They run with `transport = "none"`, because two nodes with embedded signers
 derive the same `node_id` and cannot peer.
