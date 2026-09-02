@@ -41,6 +41,21 @@ Until those proposals are accepted, functionality described as an extension
 or proposal is implementation-specific and should not be assumed to be part
 of an established NIP.
 
+![Diamond Lightning Node architecture](doc/design.png)
+
+The architecture separates three human roles:
+
+- The **Owner** defines the signing policy enforced by the external signer.
+- The **User** uses the wallet through NWC, within the permissions and limits
+  granted by the Owner.
+- The **Controller** operates the Lightning node through NCC, subject to the
+  Owner's policy and its granted capabilities.
+
+The node communicates with the signer through NSC. Keeping policy enforcement
+in the signer means that a wallet user or node controller cannot make the
+signer approve an operation outside the Owner's policy merely by controlling
+`dln-node`.
+
 ## Nostr protocol suite
 
 Nostr is the node's only API. There is no CLI, HTTP or gRPC API, or local
