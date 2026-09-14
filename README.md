@@ -20,6 +20,22 @@ It takes its chain data from a Bitcoin Core RPC endpoint, exposes no HTTP or
 gRPC surface, and delegates signing to an external signer that can live in
 another process — or, for tests, in-process or not at all.
 
+**It implements handlers and nothing else.** Since mission 25.3 the
+protocol itself — the request pipeline, grants, rate and quota buckets,
+event kinds, NIP-44, the relay loop and notification delivery — lives in
+[`nostr-ln`](https://github.com/DarkWebDivingClub/nostr-ln), shared with
+every other consumer. This repository is `src/wallet.rs` (twenty-three NWC
+methods), `src/control.rs` (fourteen NIP-XX methods), `src/events.rs` (LDK
+events as notifications) and `src/lightning/` (the node). `src/lib.rs` is
+seventy-six lines and declares modules.
+
+That is not a tidying. Five open issues lived in the deleted code and none
+was migrated: grants applied without checking who signed them, a profile
+field spelled `access_rate` where the specification says `rate`, NIP-04
+accepted where the specification says NIP-44, and two bugs in the bucket
+arithmetic that meant rate limits never refilled. A handler cannot get any
+of them wrong because a handler cannot reach them.
+
 ## Protocol development
 
 `dln-node` is both a Lightning node implementation and a proving ground for
@@ -81,14 +97,25 @@ primitives `make_hold_invoice`, `settle_hold_invoice` and
 (`pay_onchain`, `make_new_address`, `list_addresses`, `list_transactions`,
 and fee estimation).
 
-The implemented NWC interface includes NIP-47 methods and candidate extensions
-being developed for standardisation. Hold invoices are one such extension:
-they are not currently part of NIP-47 and are provided through the project's
-fork of `nostr-sdk`/`nwc`.
+Every one of them is defined by a published specification: NIP-47 core, an
+upstream NWC extension (02, 03, 04, 05, 09, 12), or a draft of ours in the
+[`nips`](https://github.com/DarkWebDivingClub/nips) repository —
+`nwc-onchain.md`, `nwc-offers.md`, `nwc-invoices.md`, `nwc-bip321.md`,
+`nwc-route.md` and `nwc-units.md`. **No method is implemented against a
+fork.** Mission 25.1 moved the last of them out of our forked `47.md` and
+put that file back to upstream's core, and 25.2 typed every one in
+`nostr-ln`.
 
-The dispatch in `src/lib.rs` is the authoritative list of methods implemented
-by this node. Implementation here does not imply that an extension has already
-been accepted into NIP-47.
+Hold invoices were "a candidate extension provided through our fork" when
+this paragraph was first written. They are NWC-03, adopted, with vectors
+generated from the specification's own examples.
+
+**`src/wallet.rs` is the authoritative list of methods this node
+implements**, and it is more than documentation: `#[nostr_ln::service]`
+generates the kind-13194 info event from that impl block, so the node
+cannot advertise a method it does not serve. It used to — `estimate_onchain_fees`
+was registered and returned `NOT_IMPLEMENTED` — and that is now
+unrepresentable.
 
 ### NCC
 
@@ -154,6 +181,7 @@ data_dir = "./data"
 [nostr]
 relay = "ws://localhost:7777"
 private_key = "<nsec or hex>"
+owners = ["<owner pubkey hex>"]         # required; see below
 
 [wallet]
 max_channel_size_sats = 10000000
@@ -173,11 +201,22 @@ nsec = "<node proxy nsec hex>"          # nostr transport only
 signer_pubkey = "<signer pubkey hex>"   # nostr transport only
 ```
 
-`[bitcoind]` and `[signer]` are optional. Omitting `[bitcoind]` starts the NWC
-service without a Lightning node attached. **Omitting `[signer]` selects
-`embedded`** — an in-process signer with two routing-balance policies
-downgraded to warnings. This mode is intended for testing and should not be
-selected implicitly in production.
+**`nostr.owners` is required.** It lists the public keys whose grants this
+node accepts, and **an empty list accepts none — the node will answer
+nothing.** Absent configuration fails closed rather than being read as
+"any owner", which is
+[#1](https://github.com/DarkWebDivingClub/dln-node/issues/1): the node
+previously kept an owners list that nothing ever wrote to, so it applied
+every grant it saw whatever key had signed it.
+
+`[bitcoind]` is required. It was optional, and omitting it started a
+service with no Lightning node attached — which could answer nothing
+useful, so the case is gone rather than silently degraded.
+
+`[signer]` is optional. **Omitting it selects `embedded`** — an in-process
+signer with two routing-balance policies downgraded to warnings. This mode
+is intended for testing and should not be selected implicitly in
+production.
 
 ## Building
 
@@ -199,9 +238,26 @@ a Bitcoin Core regtest container:
 They run with `transport = "none"`, because two nodes with embedded signers
 derive the same `node_id` and cannot peer.
 
-Scenarios for the BTK chain are in [`dln-node-knots-e2e`], and the exchange
+Scenarios for the XBT chain are in [`dln-node-knots-e2e`], and the exchange
 built on this node is tested in [`diamond-x-e2e`], which also carries the
 harness all three share.
+
+### This repository's own tests
+
+Twelve files, down from fifty-nine. The fifty-two that went were **protocol
+tests wearing method names**: they published a grant, sent a request over a
+relay and checked a response, and that pipeline is `nostr-ln`'s now, tested
+by its own suites and by
+[`nostr-ln-e2e-test`](https://github.com/DarkWebDivingClub/nostr-ln-e2e-test)
+over a real relay for every method.
+
+[`doc/test-coverage-after-25.3.md`](doc/test-coverage-after-25.3.md) maps
+each deleted group to what covers it now. Keeping that map is the condition
+under which deleting them was acceptable.
+
+What remains tests this repository and not the protocol: the handler
+against a real LDK node and `bitcoind`, peer connect and disconnect, and a
+blackbox test that builds the binary, writes a `config.toml` and runs it.
 
 [`dln-node-e2e`]: https://github.com/DarkWebDivingClub/dln-node-e2e
 [`dln-node-knots-e2e`]: https://github.com/DarkWebDivingClub/dln-node-knots-e2e
