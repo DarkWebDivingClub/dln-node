@@ -139,6 +139,19 @@ impl WalletService for Wallet {
         -> Fut<'a, Result<PayInvoiceResponse, NncError>>
     {
         Box::pin(async move {
+            // The pipeline validates that the request *parses*. Whether
+            // zero is a sensible amount is this handler's question, and
+            // answering it here is better than letting LDK fail later
+            // with a message about something else.
+            if r.amount == Some(0) {
+                return Err(NncError::new(
+                    ErrorCode::BadRequest,
+                    "amount must be greater than 0",
+                ));
+            }
+            if r.invoice.trim().is_empty() {
+                return Err(NncError::new(ErrorCode::BadRequest, "invoice is required"));
+            }
             let p = self
                 .ldk
                 .pay_invoice(r.invoice.trim(), r.amount)
@@ -151,6 +164,15 @@ impl WalletService for Wallet {
         -> Fut<'a, Result<MakeInvoiceResponse, NncError>>
     {
         Box::pin(async move {
+            // LDK cannot bind a description hash, and an invoice whose
+            // hash does not commit to the description it claims is worse
+            // than no invoice.
+            if r.description_hash.is_some() {
+                return Err(NncError::new(
+                    ErrorCode::BadRequest,
+                    "this node does not support description_hash",
+                ));
+            }
             let inv = self
                 .ldk
                 .make_invoice(
@@ -341,6 +363,12 @@ impl WalletService for Wallet {
         -> Fut<'a, Result<PayKeysendResponse, NncError>>
     {
         Box::pin(async move {
+            if r.amount == 0 {
+                return Err(NncError::new(
+                    ErrorCode::BadRequest,
+                    "amount must be greater than 0",
+                ));
+            }
             let p = self
                 .ldk
                 .pay_keysend(&r.pubkey, r.amount)

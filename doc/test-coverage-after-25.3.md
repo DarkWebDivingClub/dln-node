@@ -67,3 +67,30 @@ because the number was stated before it was checked.
 
 Porting them removes a relay, a grant and an encryption round trip from
 each, which were never what `make_invoice_happy_path` was about.
+
+## Correction: three of the five did not need porting
+
+The five were chosen as "protocol tests with real LDK work". Checking what
+the mandatory suites actually call — rather than assuming — showed three
+of them duplicated
+[`dln-node-e2e-test/two_dln_nodes`](https://github.com/DarkWebDivingClub/dln-node-e2e-test),
+which is *"alice opens a channel to bob, bob issues an invoice, alice pays
+it, and the balance change is asserted on both sides"*, driven over NWC and
+NIP-XX against regtest, and which is **mandatory**:
+
+| Deleted | Duplicated by |
+|---|---|
+| `control_open_channel_roundtrip` | `two_dln_nodes` — `open_channel`, then `has_ready_channel_with` |
+| `control_list_channels_with_open_channel` | `two_dln_nodes` — `has_ready_channel_with` reads `list_channels` |
+| `control_channel_payments_scenario` | `two_dln_nodes` — the same scenario, end to end |
+| `hello_gets_hi` | nothing, and nothing is right: it tested `run_client`, a demo that echoed "Hi" at "hello" and was deleted with the protocol layer |
+
+Porting a test that a mandatory suite already runs adds a second place for
+the same regression to be found and a second place for it to rot.
+
+**Two were ported**, because nothing else covers them:
+
+| Ported | Why it survives |
+|---|---|
+| `control_connect_disconnect_peer_roundtrip` | `connect_peer`, `disconnect_peer` and `list_peers` as operations. `two_dln_nodes` connects only as a side effect of opening a channel and never disconnects |
+| `e2e_blackbox_container` | it builds the **binary**, writes a `config.toml`, and runs it. Nothing else tests `main.rs` — and `main.rs` changed most of all, since `nostr.owners` is now required and the run-without-a-node branch is gone |
