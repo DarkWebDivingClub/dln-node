@@ -31,6 +31,7 @@ use ldk_node::lightning::offers::offer::Offer;
 use std::str::FromStr;
 pub mod rate_limit_rule;
 pub mod control;
+pub mod events;
 pub mod wallet;
 pub mod lightning;
 mod state;
