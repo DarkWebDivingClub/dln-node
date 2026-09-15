@@ -226,7 +226,7 @@ cargo build --bin dln-node
 
 ## Testing
 
-End-to-end scenarios live in [`dln-node-e2e`], which drives real nodes against
+End-to-end scenarios live in [`dln-node-e2e-test`], which drives real nodes against
 a Bitcoin Core regtest container:
 
 - `two_dln_nodes` — opens a channel, creates an invoice, and completes a
@@ -238,8 +238,8 @@ a Bitcoin Core regtest container:
 They run with `transport = "none"`, because two nodes with embedded signers
 derive the same `node_id` and cannot peer.
 
-Scenarios for the XBT chain are in [`dln-node-knots-e2e`], and the exchange
-built on this node is tested in [`diamond-x-e2e`], which also carries the
+Scenarios for the XBT chain are in [`dln-node-knots-e2e-test`], and the exchange
+built on this node is tested in [`diamond-x-e2e-test`], which also carries the
 harness all three share.
 
 ### This repository's own tests
@@ -259,8 +259,8 @@ What remains tests this repository and not the protocol: the handler
 against a real LDK node and `bitcoind`, peer connect and disconnect, and a
 blackbox test that builds the binary, writes a `config.toml` and runs it.
 
-[`dln-node-e2e`]: https://github.com/DarkWebDivingClub/dln-node-e2e
-[`dln-node-knots-e2e`]: https://github.com/DarkWebDivingClub/dln-node-knots-e2e
-[`diamond-x-e2e`]: https://github.com/DarkWebDivingClub/diamond-x-e2e
+[`dln-node-e2e-test`]: https://github.com/DarkWebDivingClub/dln-node-e2e-test
+[`dln-node-knots-e2e-test`]: https://github.com/DarkWebDivingClub/dln-node-knots-e2e-test
+[`diamond-x-e2e-test`]: https://github.com/DarkWebDivingClub/diamond-x-e2e-test
 
 [`ldk-node`]: https://github.com/lightningdevkit/ldk-node
