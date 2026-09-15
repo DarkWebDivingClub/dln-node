@@ -1182,6 +1182,40 @@ impl LdkService {
         type Edge = (NodeId, u64, u32, u32, u16);
         let mut adj: HashMap<NodeId, Vec<Edge>> = HashMap::new();
 
+        // **Our own channels first, because the graph does not contain
+        // them.** `network_graph` carries announced channels; an
+        // unannounced one is known to its two endpoints and to nobody
+        // else. Seeding only from the graph left `our_node` with no edges
+        // at all on a node whose only channel is private — so this
+        // reported "no route" for a payment `pay_invoice` makes without
+        // difficulty, because LDK's own router seeds with `first_hops`
+        // and this one did not.
+        //
+        // Found by the demo's maker in mission 27: he could pay the
+        // destination and could not quote paying it, which is the worst
+        // shape for the one method whose entire job is to answer before
+        // paying.
+        for ch in self.node.list_channels() {
+            if !ch.is_usable || ch.outbound_capacity_msat < amount_msat {
+                continue;
+            }
+            // What the *peer* charges to forward onward. Unknown until
+            // they tell us, and zero is the safe unknown here: it can
+            // only make a route look cheaper than it is, and a route that
+            // looks cheap is still taken, whereas one that looks
+            // impossible is not taken at all.
+            let base = ch.counterparty_forwarding_info_fee_base_msat.unwrap_or(0);
+            let ppm = ch.counterparty_forwarding_info_fee_proportional_millionths.unwrap_or(0);
+            let cltv = ch.counterparty_forwarding_info_cltv_expiry_delta.unwrap_or(0);
+            adj.entry(our_node).or_default().push((
+                NodeId::from_pubkey(&ch.counterparty_node_id),
+                ch.short_channel_id.unwrap_or(0),
+                base,
+                ppm,
+                cltv,
+            ));
+        }
+
         for scid in &all_channels {
             let Some(ch) = graph.channel(*scid) else { continue };
             if let Some(upd) = &ch.one_to_two {
