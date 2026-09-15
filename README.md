@@ -23,7 +23,7 @@ another process — or, for tests, in-process or not at all.
 **It implements handlers and nothing else.** Since mission 25.3 the
 protocol itself — the request pipeline, grants, rate and quota buckets,
 event kinds, NIP-44, the relay loop and notification delivery — lives in
-[`nostr-ln`](https://github.com/DarkWebDivingClub/nostr-ln), shared with
+[`nostr-ln`](https://github.com/DarkWebDivingClub/nostr-rs-ln), shared with
 every other consumer. This repository is `src/wallet.rs` (twenty-three NWC
 methods), `src/control.rs` (fourteen NIP-XX methods), `src/events.rs` (LDK
 events as notifications) and `src/lightning/` (the node). `src/lib.rs` is
@@ -248,7 +248,7 @@ Twelve files, down from fifty-nine. The fifty-two that went were **protocol
 tests wearing method names**: they published a grant, sent a request over a
 relay and checked a response, and that pipeline is `nostr-ln`'s now, tested
 by its own suites and by
-[`nostr-ln-e2e-test`](https://github.com/DarkWebDivingClub/nostr-ln-e2e-test)
+[`nostr-rs-ln-e2e-test`](https://github.com/DarkWebDivingClub/nostr-rs-ln-e2e-test)
 over a real relay for every method.
 
 [`doc/test-coverage-after-25.3.md`](doc/test-coverage-after-25.3.md) maps
