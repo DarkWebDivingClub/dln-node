@@ -17,8 +17,14 @@ relay = "ws://relay.dwdc:7777"
 # This node's identity: the public key clients reach it at, and the one
 # grants are published against.
 #
-#   dln-node keygen     creates it, 0600, and prints the public key
-#   dln-node pubkey     prints it again later
+# Create it as root, then hand it to the service — /etc/dln-node is
+# deliberately not writable by the node, since a service that can write
+# its own config directory can rewrite its own configuration:
+#
+#   dln-node keygen /etc/dln-node/config.toml
+#   chown dln-node:dln-node /etc/dln-node/node.key
+#
+#   dln-node pubkey /etc/dln-node/config.toml     prints it again later
 #
 # Nothing will invent one. A node that comes up as somebody else is worse
 # than a node that does not come up.

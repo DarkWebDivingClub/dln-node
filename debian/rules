@@ -1,12 +1,21 @@
 #!/usr/bin/make -f
 
-export CARGO_HOME = $(CURDIR)/debian/cargo
-
 %:
 	dh $@
 
-# Vendored, so the build touches no network. `--frozen` makes that a
+# Vendored, so the *build* touches no network. `--frozen` makes that a
 # guarantee rather than an intention.
+#
+# **Vendoring itself is not offline, and cannot be here.** Four of this
+# node's dependencies live in FlowRateHQ's private GitLab, so `cargo
+# vendor` needs credentials or a warm cache — it is the developer's
+# `CARGO_HOME`, deliberately, rather than a clean one that cannot reach
+# them. The build is therefore reproducible on a machine that can already
+# build this repo, and not on a bare host.
+#
+# That is a real limitation and the honest place for it is here rather
+# than in a comment claiming hermeticity it does not have. A build host
+# with its own GitLab deploy key is the fix, and it is CI work.
 override_dh_auto_configure:
 	mkdir -p .cargo
 	cargo vendor vendor > .cargo/config.toml
@@ -30,5 +39,5 @@ override_dh_installsystemd:
 	dh_installsystemd --no-enable --no-start
 
 override_dh_auto_clean:
-	rm -rf vendor .cargo debian/cargo
+	rm -rf vendor .cargo
 	cargo clean || true
