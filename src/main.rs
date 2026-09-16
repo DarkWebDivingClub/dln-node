@@ -308,10 +308,11 @@ async fn main() -> Result<()> {
         .owners
         .iter()
         .map(|o| {
-            nostr_sdk::prelude::PublicKey::parse(o)
-                .unwrap_or_else(|e| panic!("nostr.owners: {o} is not a public key: {e}"))
+            nostr_sdk::prelude::PublicKey::parse(o).map_err(|e| {
+                anyhow::anyhow!("nostr.owners in {config_path}: {o} is not a public key: {e}")
+            })
         })
-        .collect();
+        .collect::<Result<_>>()?;
     if owners.is_empty() {
         eprintln!(
             "nostr.owners is empty: this node will accept no grants and \
@@ -320,10 +321,12 @@ async fn main() -> Result<()> {
     }
     tracing::info!("{} owner(s)", owners.len());
 
-    let bitcoind = config.bitcoind.as_ref().expect(
-        "bitcoind configuration is required: this node serves a Lightning \
-         node and has nothing to answer with when there is none",
-    );
+    let bitcoind = config.bitcoind.as_ref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "{config_path} has no [bitcoind] section: this node serves a \
+             Lightning node and has nothing to answer with when there is none"
+        )
+    })?;
     let signer_transport = config
         .signer
         .as_ref()
@@ -343,7 +346,11 @@ async fn main() -> Result<()> {
         signer_nsec: config.signer.as_ref().and_then(|s| s.nsec.clone()),
         signer_pubkey: config.signer.as_ref().and_then(|s| s.signer_pubkey.clone()),
     };
-    let ldk = LdkService::start_from_config(&ldk_cfg).expect("Failed to start LDK service");
+    // **Report, do not panic.** This is where a misconfigured node fails,
+    // and the operator reading the journal gets one line rather than a
+    // backtrace note about an environment variable they will never set.
+    let ldk = LdkService::start_from_config(&ldk_cfg)
+        .map_err(|e| anyhow::anyhow!("could not start the Lightning node: {e}"))?;
 
     tracing::info!("serving");
     let service = dln_node::service::run(
@@ -365,14 +372,14 @@ async fn main() -> Result<()> {
 
     #[cfg(unix)]
     tokio::select! {
-        r = service => r.expect("service stopped"),
+        r = service => r.map_err(|e| anyhow::anyhow!("the service stopped: {e}"))?,
         _ = tokio::signal::ctrl_c() => tracing::info!("SIGINT — stopping"),
         _ = term.recv() => tracing::info!("SIGTERM — stopping"),
     }
 
     #[cfg(not(unix))]
     tokio::select! {
-        r = service => r.expect("service stopped"),
+        r = service => r.map_err(|e| anyhow::anyhow!("the service stopped: {e}"))?,
         _ = tokio::signal::ctrl_c() => tracing::info!("SIGINT — stopping"),
     }
 
