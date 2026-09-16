@@ -1,0 +1,7 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: dln-node
+Source: https://github.com/DarkWebDivingClub/dln-node
+
+Files: *
+Copyright: 2026 Dark Web Diving Club
+License: MIT

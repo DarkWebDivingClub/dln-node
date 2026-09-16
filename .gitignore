@@ -1,3 +1,14 @@
 target/
 .idea/
 .cargo/config.toml
+
+# Build artefacts from a packaging branch checkout.
+/debian/cargo/
+/debian/files
+/debian/*.substvars
+/debian/*.debhelper*
+/debian/dln-node/
+/debian/.debhelper/
+/debian/debhelper-build-stamp
+/vendor/
+/.cargo/

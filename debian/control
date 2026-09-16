@@ -1,0 +1,27 @@
+Source: dln-node
+Section: net
+Priority: optional
+Maintainer: Rene Malmgren <duke_h3@dwdc.club>
+Build-Depends: debhelper-compat (= 13),
+               cargo,
+               rustc,
+               pkg-config,
+               libssl-dev
+Standards-Version: 4.6.2
+
+Package: dln-node
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
+Description: Lightning node controlled over Nostr
+ dln-node is a Lightning node that is reached over Nostr rather than over
+ a local socket: Nostr Wallet Connect for the wallet, Nostr Node Control
+ for the node itself, with every request authorised by a grant its owner
+ published.
+ .
+ It does not start until it has been configured and given an identity.
+ There is no default key and none is generated: a node that comes up as
+ somebody else is worse than one that does not come up, because the first
+ looks like a network problem for as long as anyone keeps looking.
+ .
+ This build follows the Bitcoin chain. For the BLAKE2b (XBT) chain, see
+ the dln-node-knots package, which installs alongside it.

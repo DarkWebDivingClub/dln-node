@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        # **The state directory is left alone.** /var/lib/dln-node holds
+        # LDK's seed and the channel database — the money and the record
+        # of it. A package that deletes those on purge is a package that
+        # loses funds to a typo at a shell prompt.
+        #
+        # /etc/dln-node is left too: it holds the identity. Removing it
+        # would mean a reinstall comes up as a different node.
+        echo "dln-node: /etc/dln-node and /var/lib/dln-node left in place." >&2
+        echo "  They hold this node's identity and its channel state." >&2
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

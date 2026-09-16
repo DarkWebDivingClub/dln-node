@@ -1,0 +1,27 @@
+[Unit]
+Description=Lightning node controlled over Nostr
+Documentation=https://github.com/DarkWebDivingClub/dln-node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dln-node
+Group=dln-node
+ExecStart=/usr/bin/dln-node /etc/dln-node/config.toml
+Restart=on-failure
+RestartSec=5
+
+# systemd owns /var/lib/dln-node: LDK's seed and the channel database.
+StateDirectory=dln-node
+StateDirectoryMode=0700
+
+# Costs nothing here and closes the obvious doors.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/dln-node
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+
+export CARGO_HOME = $(CURDIR)/debian/cargo
+
+%:
+	dh $@
+
+# Vendored, so the build touches no network. `--frozen` makes that a
+# guarantee rather than an intention.
+override_dh_auto_configure:
+	mkdir -p .cargo
+	cargo vendor vendor > .cargo/config.toml
+
+override_dh_auto_build:
+	cargo build --frozen --release --bin dln-node
+
+override_dh_auto_install:
+	install -D -m 0755 target/release/dln-node \
+		debian/dln-node/usr/bin/dln-node
+	install -D -m 0644 config.example.toml \
+		debian/dln-node/usr/share/doc/dln-node/config.example.toml
+
+# The tests that matter need a relay, a chain and a node. A build host has
+# none of the three; they run in dln-node-e2e-test.
+override_dh_auto_test:
+
+# Installed disabled. It cannot start without an identity, and creating
+# one is an operator's act — see the package description.
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start
+
+override_dh_auto_clean:
+	rm -rf vendor .cargo debian/cargo
+	cargo clean || true

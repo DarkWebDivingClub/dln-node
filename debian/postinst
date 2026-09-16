@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # A system user with no shell and no home of its own. It owns the
+        # state directory systemd creates and the identity the operator
+        # will make; it owns nothing else.
+        if ! getent passwd dln-node >/dev/null; then
+            adduser --system --group --no-create-home \
+                    --home /var/lib/dln-node \
+                    --gecos "dln-node Lightning node" \
+                    dln-node >/dev/null
+        fi
+
+        # The config directory, readable by the service and not by the
+        # world: config.toml carries bitcoind's RPC password, and
+        # node.key will carry the identity.
+        mkdir -p /etc/dln-node
+        chown root:dln-node /etc/dln-node
+        chmod 0750 /etc/dln-node
+
+        # **No config is installed and no key is generated.** A config
+        # this package wrote is one nobody read, and a key an installer
+        # made is one nobody chose. The example is in
+        # /usr/share/doc/dln-node/ and the first run is three commands.
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

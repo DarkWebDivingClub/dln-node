@@ -1,0 +1,6 @@
+dln-node (0.1.0) unstable; urgency=medium
+
+  * Mission 29.2: first package. Installs a node that will not start
+    until it has been configured and given an identity.
+
+ -- Rene Malmgren <duke_h3@dwdc.club>  Wed, 16 Sep 2026 12:49:42 +0200
