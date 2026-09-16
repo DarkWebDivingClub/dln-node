@@ -1,3 +1,7 @@
 target/
 .idea/
 .cargo/config.toml
+
+# cargo vendor writes here during a package build. Fourth time this was
+# swept in by git add -A; the ignore is the fix, remembering is not.
+/vendor/
