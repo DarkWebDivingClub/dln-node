@@ -1,0 +1,43 @@
+# dln-node — copy to /etc/dln-node/config.toml and edit.
+#
+# This file holds a secret (bitcoind.rpc_password), so it is not
+# world-readable. The node's identity is NOT here: see nostr.key_file.
+
+[node]
+network        = "signet"
+listening_port = 9735
+# Channel state and LDK's seed. Leave it unless you have a reason —
+# the package creates it and systemd owns it.
+data_dir       = "/var/lib/dln-node"
+# alias = "my-node"
+
+[nostr]
+relay = "ws://relay.dwdc:7777"
+
+# This node's identity: the public key clients reach it at, and the one
+# grants are published against.
+#
+#   dln-node keygen     creates it, 0600, and prints the public key
+#   dln-node pubkey     prints it again later
+#
+# Nothing will invent one. A node that comes up as somebody else is worse
+# than a node that does not come up.
+key_file = "/etc/dln-node/node.key"
+
+# Whose grants this node accepts. Empty means it answers nothing —
+# absent configuration fails closed rather than reading as "any owner".
+owners = []
+
+[bitcoind]
+rpc_host     = "btc.signet.dwdc"
+rpc_port     = 48333
+rpc_user     = "dln"
+rpc_password = ""
+
+[wallet]
+max_channel_size_sats = 10000000
+min_channel_size_sats = 20000
+auto_accept_channels  = false
+
+[signer]
+transport = "none"

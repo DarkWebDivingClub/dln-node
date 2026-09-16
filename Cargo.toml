@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# The binary reports failures to an operator now rather than panicking at
+# a developer, and every one of them names a path. anyhow is what the
+# rest of this estate uses for that.
+anyhow = "1"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
